@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
+#include <cstring>
 #include <iomanip>
 
 using namespace std;
@@ -45,6 +46,7 @@ int biBitCount;
 
 RGBQUAD* pColorTable;
 
+//Read BMP
 bool readBmp(char* bmpName) {
     FILE* fp = fopen(bmpName, "rb");
     if (fp == 0)
@@ -67,46 +69,12 @@ bool readBmp(char* bmpName) {
 
     pBmpBuf = new unsigned char[lineByte * bmpHeight];
     fread(pBmpBuf, 1, lineByte * bmpHeight, fp);
+    //cout << "Bit Count: " << biBitCount << endl;
     fclose(fp);
     return true;
 }
 
-bool quantizeImage(unsigned char* imgBuf, int width, int height, int biBitCount, int newBitCount) {
-    if (biBitCount == newBitCount) {
-        // No need to quantize if the bit counts are the same
-        return true;
-    }
-
-    int lineByte = (width * biBitCount / 8 + 3) / 4 * 4;
-    int newLineByte = (width * newBitCount / 8 + 3) / 4 * 4;
-    int shiftBits = biBitCount - newBitCount;
-    int maxValue = (1 << newBitCount) - 1;
-
-    for (int i = 0; i < height; i++) {
-        int offset = i * lineByte;
-
-        for (int j = 0; j < width; j++) {
-            int pixelOffset = offset + j * (biBitCount / 8);
-            unsigned int pixelValue = 0;
-
-            // Extract the pixel value
-            for (int k = 0; k < biBitCount / 8; k++) {
-                pixelValue |= (imgBuf[pixelOffset + k] << (k * 8));
-            }
-
-            // Quantize the pixel value
-            pixelValue = (pixelValue >> shiftBits) & maxValue;
-
-            // Update the pixel value
-            for (int k = 0; k < newBitCount; k++) {
-                imgBuf[pixelOffset + k] = static_cast<unsigned char>((pixelValue >> (k * 8)) & 0xFF);
-            }
-        }
-    }
-
-    return true;
-}
-
+//Output BMP
 bool saveBmp(char* bmpName, unsigned char* imgBuf, int width, int height, int biBitCount, RGBQUAD* pColorTable) {
     if (!imgBuf)
         return false;
@@ -153,6 +121,23 @@ bool saveBmp(char* bmpName, unsigned char* imgBuf, int width, int height, int bi
     return true;
 }
 
+void quantizeChannel(BYTE& channel, int bits) {
+    BYTE mask = 0xFF << (8 - bits);
+    channel = channel & mask;
+}
+
+void quantizeImage(unsigned char* imgBuf, int width, int height, int biBitCount, int bits) {
+    int bytesPerPixel = biBitCount / 8;
+    int lineByte = (width * bytesPerPixel + 3) / 4 * 4;
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
+            for (int k = 0; k < 3; ++k) {  // R, G, and B channels
+                quantizeChannel(imgBuf[i * lineByte + j * bytesPerPixel + k], bits);
+            }
+        }
+    }
+}
+
 int main() {
     char readPath[] = "input2.bmp";
     if (!readBmp(readPath)) {
@@ -160,36 +145,31 @@ int main() {
         return 1;
     }
 
-    // Quantize the image to 6 bits
-    quantizeImage(pBmpBuf, bmpWidth, bmpHeight, biBitCount, 6);
-
-    char writePath[] = "output2_quantized_6bit.bmp";
-    if (!saveBmp(writePath, pBmpBuf, bmpWidth, bmpHeight, 6, pColorTable)) {
-        cout << "Error saving BMP file." << endl;
+    if (biBitCount != 24 && biBitCount != 32) {
+        cout << "Only 24-bit or 32-bit BMP files are supported for this operation." << endl;
+        delete[] pBmpBuf;
         return 1;
     }
 
-    // Quantize the image to 4 bits
-    quantizeImage(pBmpBuf, bmpWidth, bmpHeight, 6, 4);
+    unsigned char* copyBuffer1 = new unsigned char[bmpWidth * bmpHeight * (biBitCount / 8)];
+    memcpy(copyBuffer1, pBmpBuf, bmpWidth * bmpHeight * (biBitCount / 8));
+    quantizeImage(copyBuffer1, bmpWidth, bmpHeight, biBitCount, 6);
+    saveBmp("output2_1.bmp", copyBuffer1, bmpWidth, bmpHeight, biBitCount, nullptr);
+    delete[] copyBuffer1;
 
-    char writePath2[] = "output2_quantized_4bit.bmp";
-    if (!saveBmp(writePath2, pBmpBuf, bmpWidth, bmpHeight, 4, pColorTable)) {
-        cout << "Error saving BMP file." << endl;
-        return 1;
-    }
+    unsigned char* copyBuffer2 = new unsigned char[bmpWidth * bmpHeight * (biBitCount / 8)];
+    memcpy(copyBuffer2, pBmpBuf, bmpWidth * bmpHeight * (biBitCount / 8));
+    quantizeImage(copyBuffer2, bmpWidth, bmpHeight, biBitCount, 4);
+    saveBmp("output2_2.bmp", copyBuffer2, bmpWidth, bmpHeight, biBitCount, nullptr);
+    delete[] copyBuffer2;
 
-    // Quantize the image to 2 bits
-    quantizeImage(pBmpBuf, bmpWidth, bmpHeight, 4, 2);
-
-    char writePath3[] = "output2_quantized_2bit.bmp";
-    if (!saveBmp(writePath3, pBmpBuf, bmpWidth, bmpHeight, 2, pColorTable)) {
-        cout << "Error saving BMP file." << endl;
-        return 1;
-    }
+    unsigned char* copyBuffer3 = new unsigned char[bmpWidth * bmpHeight * (biBitCount / 8)];
+    memcpy(copyBuffer3, pBmpBuf, bmpWidth * bmpHeight * (biBitCount / 8));
+    quantizeImage(copyBuffer3, bmpWidth, bmpHeight, biBitCount, 2);
+    saveBmp("output2_3.bmp", copyBuffer3, bmpWidth, bmpHeight, biBitCount, nullptr);
+    delete[] copyBuffer3;
 
     delete[] pBmpBuf;
-    if (biBitCount == 8)
-        delete[] pColorTable;
 
     return 0;
 }

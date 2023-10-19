@@ -45,6 +45,7 @@ int biBitCount;
 
 RGBQUAD* pColorTable;
 
+//Read BMP
 bool readBmp(char* bmpName) {
     FILE* fp = fopen(bmpName, "rb");
     if (fp == 0)
@@ -71,6 +72,7 @@ bool readBmp(char* bmpName) {
     return true;
 }
 
+//Flip
 bool flipHorizontal(unsigned char* imgBuf, int width, int height, int biBitCount) {
     int lineByte = (width * biBitCount / 8 + 3) / 4 * 4;
     unsigned char* tempRow = new unsigned char[lineByte];
@@ -94,6 +96,7 @@ bool flipHorizontal(unsigned char* imgBuf, int width, int height, int biBitCount
     return true;
 }
 
+//Output BMP
 bool saveBmp(char* bmpName, unsigned char* imgBuf, int width, int height, int biBitCount, RGBQUAD* pColorTable) {
     if (!imgBuf)
         return false;

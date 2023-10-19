@@ -9,6 +9,7 @@ using namespace std;
 
 typedef unsigned short WORD;
 typedef unsigned char BYTE;
+
 #pragma pack(1)
 struct BITMAPFILEHEADER {
     WORD bfType;
@@ -42,9 +43,9 @@ unsigned char* pBmpBuf;
 int bmpWidth;
 int bmpHeight;
 int biBitCount;
-
 RGBQUAD* pColorTable;
 
+//Read BMP
 bool readBmp(char* bmpName) {
     FILE* fp = fopen(bmpName, "rb");
     if (fp == 0)
@@ -71,66 +72,12 @@ bool readBmp(char* bmpName) {
     return true;
 }
 
-bool flipHorizontal(unsigned char* imgBuf, int width, int height, int biBitCount) {
-    int lineByte = (width * biBitCount / 8 + 3) / 4 * 4;
-    unsigned char* tempRow = new unsigned char[lineByte];
-
-    for (int i = 0; i < height; i++) {
-        int offset1 = i * lineByte;
-        int offset2 = (i + 1) * lineByte - biBitCount / 8;
-
-        while (offset1 < offset2) {
-            for (int j = 0; j < biBitCount / 8; j++) {
-                tempRow[j] = imgBuf[offset1 + j];
-                imgBuf[offset1 + j] = imgBuf[offset2 + j];
-                imgBuf[offset2 + j] = tempRow[j];
-            }
-            offset1 += biBitCount / 8;
-            offset2 -= biBitCount / 8;
-        }
-    }
-
-    delete[] tempRow;
-    return true;
-}
-
-// Bilinear interpolation function
-void bilinearInterpolation(const unsigned char* srcImg, int srcWidth, int srcHeight, unsigned char* dstImg, int dstWidth, int dstHeight, int biBitCount) {
-    for (int y = 0; y < dstHeight; y++) {
-        for (int x = 0; x < dstWidth; x++) {
-            float srcX = x * (srcWidth - 1) / (float)(dstWidth - 1);
-            float srcY = y * (srcHeight - 1) / (float)(dstHeight - 1);
-
-            int x0 = (int)srcX;
-            int y0 = (int)srcY;
-            int x1 = x0 + 1;
-            int y1 = y0 + 1;
-
-            float alpha = srcX - x0;
-            float beta = srcY - y0;
-
-            for (int c = 0; c < biBitCount / 8; c++) {
-                int srcIndex00 = (y0 * srcWidth + x0) * (biBitCount / 8) + c;
-                int srcIndex01 = (y0 * srcWidth + x1) * (biBitCount / 8) + c;
-                int srcIndex10 = (y1 * srcWidth + x0) * (biBitCount / 8) + c;
-                int srcIndex11 = (y1 * srcWidth + x1) * (biBitCount / 8) + c;
-                int dstIndex = (y * dstWidth + x) * (biBitCount / 8) + c;
-
-                dstImg[dstIndex] = (1 - alpha) * (1 - beta) * srcImg[srcIndex00] +
-                                  alpha * (1 - beta) * srcImg[srcIndex01] +
-                                  (1 - alpha) * beta * srcImg[srcIndex10] +
-                                  alpha * beta * srcImg[srcIndex11];
-            }
-        }
-    }
-}
-
+//Output BMP
 bool saveBmp(char* bmpName, unsigned char* imgBuf, int width, int height, int biBitCount, RGBQUAD* pColorTable) {
     if (!imgBuf)
         return false;
 
     int colorTablesize = 0;
-
     if (biBitCount == 8)
         colorTablesize = 1024;
 
@@ -171,55 +118,49 @@ bool saveBmp(char* bmpName, unsigned char* imgBuf, int width, int height, int bi
     return true;
 }
 
+//Resize
+unsigned char* resize(unsigned char* imgBuf, int width, int height, int biBitCount, float factor, int &newWidth, int &newHeight) {
+    newWidth = (int)(width * factor);
+    newHeight = (int)(height * factor);
+    int bytesPerPixel = biBitCount / 8;
+    int lineByte = (newWidth * biBitCount / 8 + 3) / 4 * 4;
+    unsigned char* newImgBuf = new unsigned char[lineByte * newHeight];
+
+    for(int i = 0; i < newHeight; i++) {
+        for(int j = 0; j < newWidth; j++) {
+            int oldX = (int)(j / factor);
+            int oldY = (int)(i / factor);
+            for(int b = 0; b < bytesPerPixel; b++) {
+                newImgBuf[(i * lineByte) + (j * bytesPerPixel) + b] = imgBuf[(oldY * (width * bytesPerPixel)) + (oldX * bytesPerPixel) + b];
+            }
+        }
+    }
+
+    return newImgBuf;
+}
+
 int main() {
-    char readPath[] = "input1.bmp";
+    char readPath[] = "input2.bmp";
     if (!readBmp(readPath)) {
         cout << "Error reading BMP file." << endl;
         return 1;
     }
-/*
-    // Flip the image horizontally
-    flipHorizontal(pBmpBuf, bmpWidth, bmpHeight, biBitCount);
 
-    char writePath[] = "output1_flip.bmp";
-    if (!saveBmp(writePath, pBmpBuf, bmpWidth, bmpHeight, biBitCount, pColorTable)) {
-        cout << "Error saving BMP file." << endl;
-        return 1;
-    }
-*/
+    // Rescale up by 1.5
+    int newWidth, newHeight;
+    unsigned char* upScaledImg = resize(pBmpBuf, bmpWidth, bmpHeight, biBitCount, 1.5, newWidth, newHeight);
+    saveBmp("output2_up.bmp", upScaledImg, newWidth, newHeight, biBitCount, pColorTable);
+    delete[] upScaledImg;
 
-    //UP scaling
-    int newWidth = bmpWidth * 1.5; // Adjust the new width as needed
-    int newHeight = bmpHeight * 1.5; // Adjust the new height as needed
-    unsigned char* resizedBmpBuf = new unsigned char[newWidth * newHeight * (biBitCount / 8)];
-
-    // Perform bilinear interpolation to resize the image
-    bilinearInterpolation(pBmpBuf, bmpWidth, bmpHeight, resizedBmpBuf, newWidth, newHeight, biBitCount);
-
-    char writePath_resize_up[] = "output1_up.bmp";
-    if (!saveBmp(writePath_resize_up, resizedBmpBuf, newWidth, newHeight, biBitCount, pColorTable)) {
-        cout << "Error saving BMP file." << endl;
-        return 1;
-    }
-    //down scaling
-    newWidth = bmpWidth * (1/1.5); // Adjust the new width as needed
-    newHeight = bmpHeight * (1/1.5); // Adjust the new height as needed
-    resizedBmpBuf = new unsigned char[newWidth * newHeight * (biBitCount / 8)];
-
-    // Perform bilinear interpolation to resize the image
-    bilinearInterpolation(pBmpBuf, bmpWidth, bmpHeight, resizedBmpBuf, newWidth, newHeight, biBitCount);
-
-    char writePath_resize_down[] = "output1_down.bmp";
-    if (!saveBmp(writePath_resize_down, resizedBmpBuf, newWidth, newHeight, biBitCount, pColorTable)) {
-        cout << "Error saving BMP file." << endl;
-        return 1;
-    }    
+    // Rescale down by 1.5
+    unsigned char* downScaledImg = resize(pBmpBuf, bmpWidth, bmpHeight, biBitCount, 1/1.5, newWidth, newHeight);
+    saveBmp("output2_down.bmp", downScaledImg, newWidth, newHeight, biBitCount, pColorTable);
+    delete[] downScaledImg;
 
     delete[] pBmpBuf;
-    delete[] resizedBmpBuf; // Don't forget to free the memory for the resized image
-
-    if (biBitCount == 8)
+    if (biBitCount == 8) {
         delete[] pColorTable;
+    }
 
     return 0;
 }
