@@ -146,7 +146,7 @@ void sharpenImage(unsigned char* imgBuf, int width, int height, int biBitCount, 
         }
     }
 
-    // 将锐化后的图像拷贝回原始图像缓冲区
+
     memcpy(imgBuf, newImgBuf, lineByte * height);
     delete[] newImgBuf;
 }
