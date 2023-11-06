@@ -7,7 +7,7 @@
 
 using namespace std;
 
-// BMP文件头结构体
+// BMP Head
 typedef unsigned short WORD;
 typedef unsigned char BYTE;
 
@@ -46,7 +46,7 @@ int bmpHeight;
 int biBitCount;
 RGBQUAD* pColorTable;
 
-// 读取BMP文件
+// Read BMP
 bool readBmp(char* bmpName) {
     FILE* fp = fopen(bmpName, "rb");
     if (fp == 0)
@@ -73,7 +73,7 @@ bool readBmp(char* bmpName) {
     return true;
 }
 
-// 保存BMP文件
+// Save BMP
 bool saveBmp(char* bmpName, unsigned char* imgBuf, int width, int height, int biBitCount, RGBQUAD* pColorTable) {
     if (!imgBuf)
         return false;
@@ -159,11 +159,11 @@ int main() {
         return 1;
     }
 
-    // 第一组滤波器参数
+    //First Filter Coeff
     int sharpenFilter1[3][3] = {{-1, -1, -1},
                                 {-1,  9, -1},
                                 {-1, -1, -1}};
-    // 应用第一组滤波器参数
+ 
     sharpenImage(pBmpBuf, bmpWidth, bmpHeight, biBitCount, sharpenFilter1);
 
     char writePath1[] = "output2_1.bmp";
@@ -172,11 +172,11 @@ int main() {
         return 1;
     }
 
-    // 第二组滤波器参数
+    //Second Filter Coeff
     int sharpenFilter2[3][3] = {{0, -1, 0},
                                 {-1,  5, -1},
                                 {0, -1, 0}};
-    // 应用第二组滤波器参数
+   
     sharpenImage(pBmpBuf, bmpWidth, bmpHeight, biBitCount, sharpenFilter2);
 
     char writePath2[] = "output2_2.bmp";
